@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +13,11 @@ namespace OpenIdClient.Controllers
     public class LoginController : Controller
     {
 
-        private static readonly Dictionary<string, string> _cache = new();
+        //private string _codeVerifier;
+        //private string _state;
 
-        private TokenResponse _tokenResponse;
 
-       
+    
 
         [HttpGet]
         public async Task<IActionResult> Home()
@@ -31,13 +32,20 @@ namespace OpenIdClient.Controllers
         [HttpGet("login")]
         public async Task<IActionResult> Login()
         {
+
+            Config.codeVerifier = SecureValueGenerator.GenerateRandomString(22);
+            Config.state = SecureValueGenerator.GenerateRandomString(33);
+
+
+            //_state = "97tvtZHsHTV4I5parGxBJ-sRF5Lml_JGmb21VXwtoaE";
+            //_codeVerifier = "es1kPi2mRaxvo4Y3cb8gRFRmYrpJzyO9FelyjMrgy0w";
+
+
+
+
             string keyCloakUrl = Config.keyCloakUrl;
             string clientId = Config.clientId;
             string callback = "https://localhost:7082/callback";
-            string state = Config.state;
-            string codeVerifier = Config.codeVerifier;
-
-            //string redirectUrl = $"{keyCloakUrl}?client_id={clientId}&scope=openid email phone address profile&response_type=code&redirect_uri={callback}&prompt=login&state={state}&code_challenge_method=plain&code_challenge={codeVerifier}";
 
 
 
@@ -48,9 +56,9 @@ namespace OpenIdClient.Controllers
                 { "response_type", "code" },
                 { "redirect_uri", callback },
                 { "prompt", "login" },
-                { "state", state },
+                { "state", Config.state },
                 { "code_challenge_method", "plain" },
-                { "code_challenge", codeVerifier }
+                { "code_challenge", Config.codeVerifier }
             };
             var authorizationUri = QueryHelpers.AddQueryString(keyCloakUrl, parameters);
 
@@ -75,12 +83,13 @@ namespace OpenIdClient.Controllers
                 { "client_id", Config.clientId },
                 { "client_secret", Config.clientSecret }
             };
-            var response =
-                await new HttpClient().PostAsync(Config.tokenEndpoint, new FormUrlEncodedContent(parameters));
+
+            var response = await new HttpClient().PostAsync(Config.tokenEndpoint, new FormUrlEncodedContent(parameters));
 
             TokenResponse tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
 
-            //return Ok(tokenResponse);
+
+
 
             return Redirect($"https://localhost:7082/User?accessToken={tokenResponse.access_token}");
         }
